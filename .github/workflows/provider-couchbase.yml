@@ -1,0 +1,150 @@
+name: provider-couchbase
+
+on:
+  push:
+    tags:
+      - 'provider-couchbase-v[0-9].[0-9]+.[0-9]+'
+  pull_request:
+    paths:
+      - '.github/workflows/provider-couchbase.yml'
+      - 'providers/couchbase/**'
+
+env:
+  working_directory: providers/couchbase
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform:
+          - os: linux
+            arch: amd64
+            bin: linux_amd64.bin
+          - os: linux
+            arch: arm64
+            bin: linux_arm64.bin
+          - os: darwin
+            arch: amd64
+            bin: darwin_amd64.bin
+          - os: darwin
+            arch: arm64
+            bin: darwin_arm64.bin
+          - os: windows
+            arch: amd64
+            bin: windows_amd64.exe
+
+    steps:
+      # Checkout the repository with submodules
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Set up Go environment
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+
+      # Install dependencies
+      - name: Install dependencies
+        working-directory: ${{ env.working_directory }}
+        run: go mod tidy
+
+      # Build Go binaries for multiple platforms
+      - name: Build binary ${{ matrix.platform.os }}_${{ matrix.platform.arch }}
+        env:
+          GOOS: ${{ matrix.platform.os }}
+          GOARCH: ${{ matrix.platform.arch }}
+        working-directory: ${{ env.working_directory }}
+        run: |
+          echo "Building for $GOOS/$GOARCH to ${{ matrix.platform.bin }}"
+          GOOS=$GOOS GOARCH=$GOARCH go build -o ${{ matrix.platform.bin }}
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform.os }}_${{ matrix.platform.arch }}
+          path: ${{ env.working_directory }}/${{ matrix.platform.bin }}
+
+  archive:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      # Install wash
+      - uses: taiki-e/install-action@be7c31b6745feec79dec5eb79178466c0670bb2d # v2.49.49
+        with:
+          tool: wash
+      - name: Install wit-bindgen-wrpc
+        run: |
+          curl -fLO https://github.com/bytecodealliance/wrpc/releases/download/v0.14.0/wit-bindgen-wrpc-x86_64-unknown-linux-musl
+          chmod +x wit-bindgen-wrpc-x86_64-unknown-linux-musl
+          sudo mv wit-bindgen-wrpc-x86_64-unknown-linux-musl /usr/local/bin/wit-bindgen-wrpc
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ env.working_directory }}/bin
+      - name: Set version
+        if: github.event_name == 'pull_request'
+        run: echo "VERSION=canary" >> $GITHUB_ENV
+      - name: Set version
+        if: github.event_name == 'push'
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME#couchbase-provider-v}" >> $GITHUB_ENV
+      # Create provider archive
+      - name: Provider archive
+        working-directory: ${{ env.working_directory }}
+        env:
+          WASH_ISSUER_KEY: ${{ secrets.WASMCLOUD_ACCOUNT_OFFICIAL }}
+          WASH_SUBJECT_KEY: ${{ secrets.WASMCLOUD_COUCHBASE }}
+        run: |
+          wash par create \
+                --binary "./bin/linux_amd64/linux_amd64.bin" \
+                --compress \
+                --destination "couchbase.par.gz" \
+                --name "couchbase-provider" \
+                --vendor "wasmcloud" \
+                --version "${VERSION}"
+          # TODO: encode WIT in archive after merging
+          wash par insert \
+            --arch aarch64-linux \
+            --binary "./bin/linux_arm64/linux_arm64.bin" \
+            couchbase.par.gz
+          wash par insert \
+            --arch aarch64-macos \
+            --binary "./bin/darwin_arm64/darwin_arm64.bin" \
+            couchbase.par.gz
+          wash par insert \
+            --arch x86_64-macos \
+            --binary "./bin/darwin_amd64/darwin_amd64.bin" \
+            couchbase.par.gz
+          wash par insert \
+            --arch x86_64-windows \
+            --binary "./bin/windows_amd64/windows_amd64.exe" \
+            couchbase.par.gz
+          wash par inspect couchbase.par.gz
+      - name: Upload provider archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: couchbase-provider-archive
+          path: ${{ env.working_directory }}/couchbase.par.gz
+      - name: Push provider archive
+        # if: github.event_name == 'push'
+        env:
+          WASH_REG_USER: wasmCloud
+          WASH_REG_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          wash push ghcr.io/wasmcloud/contrib/providers/couchbase:$VERSION \
+            ${{ env.working_directory }}/couchbase.par.gz \
