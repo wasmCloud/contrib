@@ -1,0 +1,3 @@
+[submodule "providers/couchbase"]
+	path = providers/couchbase
+	url = https://github.com/couchbaselabs/wasmcloud-provider-couchbase
