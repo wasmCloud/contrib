@@ -102,7 +102,7 @@ jobs:
       - name: Set version
         if: github.event_name == 'push'
         run: |
-          echo "VERSION=${GITHUB_REF_NAME#couchbase-provider-v}" >> $GITHUB_ENV
+          echo "VERSION=${GITHUB_REF_NAME#provider-couchbase-v}" >> $GITHUB_ENV
       # Create provider archive
       - name: Provider archive
         working-directory: ${{ env.working_directory }}
@@ -116,8 +116,8 @@ jobs:
                 --destination "couchbase.par.gz" \
                 --name "couchbase-provider" \
                 --vendor "wasmcloud" \
+                --wit-directory ./wit \
                 --version "${VERSION}"
-          # TODO: encode WIT in archive after merging
           wash par insert \
             --arch aarch64-linux \
             --binary "./bin/linux_arm64/linux_arm64.bin" \
