@@ -13,7 +13,6 @@ env:
   working_directory: providers/couchbase
 permissions:
   contents: read
-  packages: write
 
 jobs:
   build:
@@ -42,13 +41,13 @@ jobs:
     steps:
       # Checkout the repository with submodules
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           submodules: recursive
 
       # Set up Go environment
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@19bb51245e9c80abacb2e91cc42b33fa478b8639 # v4.2.1
         with:
           go-version: '1.24'
 
@@ -65,9 +64,9 @@ jobs:
         working-directory: ${{ env.working_directory }}
         run: |
           echo "Building for $GOOS/$GOARCH to ${{ matrix.platform.bin }}"
-          GOOS=$GOOS GOARCH=$GOARCH go build -o ${{ matrix.platform.bin }}
+          go build -o ${{ matrix.platform.bin }}
       - name: Upload binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ matrix.platform.os }}_${{ matrix.platform.arch }}
           path: ${{ env.working_directory }}/${{ matrix.platform.bin }}
@@ -80,7 +79,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           submodules: recursive
       # Install wash
@@ -93,14 +92,14 @@ jobs:
           chmod +x wit-bindgen-wrpc-x86_64-unknown-linux-musl
           sudo mv wit-bindgen-wrpc-x86_64-unknown-linux-musl /usr/local/bin/wit-bindgen-wrpc
       - name: Download binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           path: ${{ env.working_directory }}/bin
       - name: Set version
         if: github.event_name == 'pull_request'
         run: echo "VERSION=canary" >> $GITHUB_ENV
       - name: Set version
-        if: github.event_name == 'push'
+        if: ${{ github.event_name == 'push' && github.ref_type == 'tag' }}
         run: |
           echo "VERSION=${GITHUB_REF_NAME#provider-couchbase-v}" >> $GITHUB_ENV
       # Create provider archive
@@ -136,12 +135,12 @@ jobs:
             couchbase.par.gz
           wash par inspect couchbase.par.gz
       - name: Upload provider archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: couchbase-provider-archive
           path: ${{ env.working_directory }}/couchbase.par.gz
       - name: Push provider archive
-        # if: github.event_name == 'push'
+        if: ${{ github.event_name == 'push' && github.ref_type == 'tag' }}
         env:
           WASH_REG_USER: wasmCloud
           WASH_REG_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
