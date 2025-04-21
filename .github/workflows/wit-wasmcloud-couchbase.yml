@@ -1,0 +1,62 @@
+name: wit-wasmcloud-couchbase
+
+on:
+  push:
+    tags:
+      - 'wit-wasmcloud-couchbase-v[0-9].[0-9]+.[0-9]+'
+  pull_request:
+    paths:
+      - '.github/workflows/wit-wasmcloud-couchbase.yml'
+      - 'providers/couchbase/wit'
+
+env:
+  working_directory: providers/couchbase
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: taiki-e/install-action@be7c31b6745feec79dec5eb79178466c0670bb2d # v2.49.49
+        with:
+          tool: wash
+      - uses: wasmcloud/wasmcloud/.github/actions/configure-wkg@4687e1a23f07f1b2b7cc917dad1dc3e7df5106cf
+        with:
+          oci-username: ${{ github.repository_owner }}
+          oci-password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build
+        working-directory: ${{ env.working_directory }}
+        run: wash wit build -f package.wasm
+      # From here on, only run for tagged releases
+      - name: Push version-tagged WebAssembly binary to GHCR
+        # if: ${{ github.event_name == 'push' }}
+        working-directory: ${{ env.working_directory }}
+        run: wash wit publish package.wasm
+      - name: Extract tag context
+        if: ${{ github.event_name == 'push' }}
+        id: ctx
+        run: |
+          version=${GITHUB_REF_NAME#wit-wasmcloud-couchbase-v}
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tarball=wit-wasmcloud-couchbase-${version}.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "version is ${version}"
+      - name: Package tarball for release
+        if: ${{ github.event_name == 'push' }}
+        working-directory: ${{ env.working_directory }}
+        run: |
+          tar -cvzf ${{ steps.ctx.outputs.tarball }} wit
+      - name: Release
+        if: ${{ github.event_name == 'push' }}
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
+        with:
+          files: ${{ steps.ctx.outputs.tarball }}
+          make_latest: 'false'
