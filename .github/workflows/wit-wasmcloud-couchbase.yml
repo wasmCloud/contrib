@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'wit-wasmcloud-couchbase-v[0-9].[0-9]+.[0-9]+'
+      - 'wit-wasmcloud-couchbase-v[0-9].[0-9]+.[0-9]+-*'
   pull_request:
     paths:
       - '.github/workflows/wit-wasmcloud-couchbase.yml'
