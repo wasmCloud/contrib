@@ -1,0 +1,12 @@
+dependencies:
+- name: nats
+  repository: https://nats-io.github.io/k8s/helm/charts/
+  version: 1.2.4
+- name: wadm
+  repository: oci://ghcr.io/wasmcloud/charts
+  version: 0.2.5
+- name: wasmcloud-operator
+  repository: oci://ghcr.io/wasmcloud/charts
+  version: 0.1.5
+digest: sha256:5fcb810b1052a5199674f0bc49b885f1db9ffc74b837ce663e5d599c4d0f6089
+generated: "2024-09-02T10:01:40.91215-04:00"
