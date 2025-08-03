@@ -9,8 +9,8 @@ This example was created following the [Developing Wasm component model in MoonB
   - `cargo install wit-deps-cli`
 - wasm-tools
   - `cargo install wasm-tools`
-- Moonbit wit-bindgen fork
-  - `cargo install wit-bindgen-cli --git https://github.com/peter-jerry-ye/wit-bindgen/ --branch moonbit`
+- wit-bindgen
+  - `cargo install wit-bindgen-cli`
 - [Moonbit CLI](https://www.moonbitlang.com/download/#moonbit-cli-tools)
 - [wash CLI](https://wasmcloud.com/docs/installation)
 
