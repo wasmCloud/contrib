@@ -1,0 +1,25 @@
+nats:
+  config:
+    cluster:
+      enabled: true
+      replicas: 3
+    leafnodes:
+      enabled: true
+    websocket:
+      enabled: true
+      port: 4223
+    jetstream:
+      enabled: true
+      fileStore:
+        pvc:
+          size: 10Gi
+      merge:
+        domain: default
+
+wadm:
+  wadm:
+    image:
+      tag: v0.12.2
+    config:
+      nats:
+        server: "nats.default.svc.cluster.local:4222"
