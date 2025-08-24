@@ -1,0 +1,37 @@
+# wadm.yaml
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: cron-scheduler-demo
+spec:
+  components:
+    # The Rust Wasm component
+    - name: cron-scheduler-component
+      type: component
+      properties:
+        image: file://./build/cron_scheduler.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 1
+
+    # Cron capability provider
+    - name: cron-provider
+      type: capability
+      properties:
+        image: file://./build/provider-cron-scheduler.par.gz
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 1
+        - type: link
+          properties:
+            target: cron-scheduler-component
+            namespace: wasmcloud
+            package: cron
+            interfaces: [scheduler]
+            target_config:
+              - name: cron-config
+                properties:
+                  cluster_uri: nats://127.0.0.1:4222
+                  cronjobs: job_1=0 * 1 * * ?:{"x1":"foo","x2":"bar"};
