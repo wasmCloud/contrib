@@ -1,0 +1,10 @@
+name = "Cron scheduler"
+language = "rust"
+type = "provider"
+
+
+[overrides]
+"wasmcloud:cron" = { path = "./wit/cron/" }
+
+[provider]
+vendor = "Example Vendor"
