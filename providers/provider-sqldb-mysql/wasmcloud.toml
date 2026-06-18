@@ -1,0 +1,9 @@
+name = "sqldb Mysql Provider"
+language = "rust"
+type = "provider"
+
+[overrides]
+"wasmcloud:mysql" = { path = "./wit//mysql" }
+
+[provider]
+vendor = ""

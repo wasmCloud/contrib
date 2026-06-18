@@ -1,0 +1,6 @@
+package wasmcloud:provider-sqldb-mysql;
+
+world interfaces{
+    export wasmcloud:mysql/query@1.0.0;
+    export wasmcloud:mysql/prepared@1.0.0;
+}

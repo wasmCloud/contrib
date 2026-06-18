@@ -1,0 +1,236 @@
+package wasmcloud:mysql@1.0.0;
+
+/// Types used by components and providers of a SQLDB MySQL interface
+interface types {
+
+  /// Errors that occur while executing queries
+  variant query-error {
+    /// Unknown/invalid query parameters
+    invalid-params(string),
+    /// Invalid/malformed query
+    invalid-query(string),
+    /// A completely unexpected error, specific to executing queries
+    unexpected(string),
+  }
+
+  /// Errors that occur while preparing a statement
+  variant statement-prepare-error {
+    /// A completely unexpected error
+    unexpected(string),
+  }
+
+  /// Errors that occur during prepared statement execution
+  variant prepared-statement-exec-error {
+    /// Unknown/invalid prepared statement token
+    unknown-prepared-query,
+    /// An otherwise known query execution error
+    query-error(query-error),
+    /// A completely unexpected error, specific to prepared statements
+    unexpected(string),
+  }
+
+  /// This type of floating point is necessary as rust does not allow Eq/PartialEq/Hash on real `f64`
+  /// Instead we use a sign + mantissa + exponent
+  ///
+  /// see: https://docs.rs/num/latest/num/trait.Float.html#tymethod.integer_decode
+  type hashable-f64 = tuple<u64, s16, s8>;
+  type hashable-f32 = hashable-f64;
+
+  type column-name = string;
+
+  /// Arbitrary precision numeric type
+  type decimal = string;
+
+  /// MySQL SET type - represents a set of string values
+  type set = list<string>;
+
+  /// MySQL ENUM type - represents an enumeration
+  type %enum = string;
+
+  /// MySQL's date representation
+  record date {
+    year: u32,
+    month: u32,
+    day: u32,
+  }
+
+  /// MySQL's time representation
+  /// Can represent both time-of-day and time intervals (including negative)
+  record time {
+    negative: bool,
+    hour: u32,
+    minute: u32,
+    second: u32,
+    microsecond: u32,
+  }
+
+  /// MySQL's datetime representation
+  record datetime {
+    date: date,
+    time: time,
+  }
+
+  /// MySQL TIMESTAMP - stored as UTC internally, converted based on session timezone
+  record timestamp {
+    datetime: datetime,
+  }
+
+  /// MySQL's year representation
+  variant year {
+    year-two(u8),
+    year-four(u32),
+  }
+
+  /// MySQL data values, usable as parameters or via queries
+  /// see: https://dev.mysql.com/doc/refman/8.0/en/data-types.html
+  ///
+  /// This datatype is primarily intended to be used with the `raw` encoding scheme.
+  ///
+  /// NOTE: MySQL does not support native arrays like PostgreSQL.
+  /// For array-like functionality, use JSON or separate normalized tables.
+  /// NOTE: all numeric values are little-endian unless otherwise specified
+  variant mysql-value {
+    null,
+
+    // Numeric Types
+    /// TINYINT[(M)] [UNSIGNED] - 1 byte integer (-128 to 127)
+    tinyint(s8),
+    /// TINYINT UNSIGNED - 1 byte integer (0 to 255)
+    tinyint-unsigned(u8),
+    
+    /// SMALLINT[(M)] [UNSIGNED] - 2 byte integer (-32,768 to 32,767)
+    smallint(s16),
+    /// SMALLINT UNSIGNED - 2 byte integer (0 to 65,535)
+    smallint-unsigned(u16),
+    
+    /// MEDIUMINT[(M)] [UNSIGNED] - 3 byte integer (-8,388,608 to 8,388,607)
+    mediumint(s32),
+    /// MEDIUMINT UNSIGNED - 3 byte integer (0 to 16,777,215)
+    mediumint-unsigned(u32),
+    
+    /// INT[(M)] / INTEGER[(M)] [UNSIGNED] - 4 byte integer (-2,147,483,648 to 2,147,483,647)
+    int(s32), 
+    integer(s32),
+    /// INT/INTEGER UNSIGNED - 4 byte integer (0 to 4,294,967,295)
+    int-unsigned(u32),
+    integer-unsigned(u32),
+    
+    /// BIGINT[(M)] [UNSIGNED] - 8 byte integer (-9,223,372,036,854,775,808 to 9,223,372,036,854,775,807)
+    bigint(s64),
+    /// BIGINT UNSIGNED - 8 byte integer (0 to 18,446,744,073,709,551,615)
+    bigint-unsigned(u64),
+
+    /// DECIMAL(M[,D])/NUMERIC(M[,D]) [UNSIGNED] - Fixed point, up to 65 digits
+    decimal(decimal),
+    numeric(decimal),
+
+    /// FLOAT[(M,D)] [UNSIGNED] - Single-precision floating point
+    float(hashable-f32),
+
+    /// DOUBLE[(M,D)] / REAL[(M,D)] [UNSIGNED] - Double-precision floating point
+    double(hashable-f64),
+    real(hashable-f64),
+
+    /// BIT[(M)] - Bit-field (default 1, max 64 bits in MySQL)
+    bit(tuple<u8, list<u8>>),
+
+    /// BOOLEAN/BOOL - Synonyms for TINYINT(1)
+    %bool(bool), 
+    boolean(bool),
+
+    // Date and Time Types
+    /// DATE - 'YYYY-MM-DD'
+    date(date),
+    
+    /// TIME[(fsp)] - '[hh:mm:ss[.fraction]]', fsp: 0–6
+    time(time),
+    
+    /// DATETIME[(fsp)] - 'YYYY-MM-DD hh:mm:ss[.fraction]', fsp: 0–6
+    datetime(datetime),
+    
+    /// TIMESTAMP[(fsp)] - Same as DATETIME; stored UTC, auto-convert
+    timestamp(timestamp),
+    
+    /// YEAR[(2|4)] - Year value (range 1901–2155)
+    year(year),
+
+    // String Types - MySQL uses UTF-8 by default, so string is appropriate
+    /// CHAR(M) - Fixed length string (0–255 chars)
+    %char(tuple<u32, string>),
+    
+    /// VARCHAR(M) - Variable length string (0–65,535 chars)
+    varchar(tuple<u32, string>),
+    
+    // Text Types
+    /// TINYTEXT - Max 255 characters
+    tinytext(string),
+    /// TEXT - Max 65,535 characters
+    text(string),
+    /// MEDIUMTEXT - Max 16,777,215 characters
+    mediumtext(string),
+    /// LONGTEXT - Max 4,294,967,295 characters
+    longtext(string),
+
+    // Binary Types - use bytes for true binary data
+    /// BINARY(M) - Fixed binary (0–255 bytes)
+    binary(tuple<u32, list<u8>>),
+    
+    /// VARBINARY(M) - Variable binary (0–65,535 bytes)
+    varbinary(tuple<u32, list<u8>>),
+
+    // BLOB Types - binary large objects
+    /// TINYBLOB - Max 255 bytes
+    tinyblob(list<u8>),
+    /// BLOB - Max 65,535 bytes
+    blob(list<u8>),
+    /// MEDIUMBLOB - Max 16,777,215 bytes
+    mediumblob(list<u8>),
+    /// LONGBLOB - Max 4,294,967,295 bytes
+    longblob(list<u8>),
+
+    // specific Set Types
+    /// ENUM('value1',...) - One value from set
+    %enum(%enum),
+    
+    /// SET('value1',...) - Zero or more values from set
+    set(set),
+
+    // JSON Type (MySQL 5.7+)
+    /// JSON - Native JSON storage/query support
+    json(string),
+
+    // Spatial Types (MySQL spatial extensions) - stored as Well-Known Binary
+    /// GEOMETRY - Any spatial value
+    geometry(list<u8>),
+    
+    /// POINT - Single x,y coordinate
+    point-geom(list<u8>),
+    
+    /// LINESTRING - Series of points forming a line
+    linestring(list<u8>),
+    
+    /// POLYGON - Closed area defined by points
+    polygon(list<u8>),
+    
+    /// MULTIPOINT - Multiple POINT values
+    multipoint(list<u8>),
+    
+    /// MULTILINESTRING - Multiple LINESTRINGs
+    multilinestring(list<u8>),
+    
+    /// MULTIPOLYGON - Multiple POLYGONs
+    multipolygon(list<u8>),
+    
+    /// GEOMETRYCOLLECTION - Collection of spatial objects
+    geometrycollection(list<u8>),
+  }
+
+  record result-row-entry {
+    /// Name of the result column
+    column-name: string,
+    /// Value of the result column
+    value: mysql-value,
+  }
+
+  type result-row = list<result-row-entry>;
+}
