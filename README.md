@@ -1,3 +1,7 @@
+> [!WARNING]
+> This repository is archived and is no longer maintained. It receives no bug fixes or security updates.
+> For current community examples and tooling, see [wasmCloud/awesome-wasmcloud](https://github.com/wasmCloud/awesome-wasmcloud) and [wasmCloud/wasmCloud](https://github.com/wasmCloud/wasmCloud). wasmCloud 1.x is fully deprecated.
+
 # wasmCloud contrib
 
 Community contributions of providers, components, and demos
